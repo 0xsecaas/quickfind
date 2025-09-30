@@ -1,7 +1,7 @@
 use crate::config::load_config;
 use crate::db;
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -25,8 +25,6 @@ use tui::{
 enum Focus {
     Search,
     Results,
-    HistoryModal,
-    ConfirmClearHistory,
 }
 
 pub fn run_tui(conn: &Connection, initial_search: Option<String>) -> Result<()> {
@@ -107,8 +105,6 @@ fn run_app<B: Backend>(
     let mut results_state = ListState::default();
     results_state.select(Some(0));
     let mut focus = Focus::Search;
-    let mut search_history = db::get_history(conn).unwrap_or_default();
-    let mut history_state = ListState::default();
 
     loop {
         terminal.draw(|f| {
@@ -120,8 +116,6 @@ fn run_app<B: Backend>(
                 &mut results_state,
                 &focus,
                 &highlight_color,
-                &search_history,
-                &mut history_state,
                 &error_message, // Pass the error_message
             )
         })?;
@@ -201,10 +195,6 @@ fn run_app<B: Backend>(
                         KeyCode::Esc => {
                             return Ok(());
                         }
-                        KeyCode::Char('h') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                            focus = Focus::HistoryModal;
-                            history_state.select(Some(0));
-                        }
                         KeyCode::Tab => {
                             focus = Focus::Results;
                         }
@@ -222,7 +212,6 @@ fn run_app<B: Backend>(
                         KeyCode::Enter => {
                             if let Some(selected) = results_state.selected() {
                                 if let Some(path) = search_results.get(selected) {
-                                    db::add_to_history(conn, &search_input).unwrap_or_default();
                                     // Attempt to open the file
                                     match opener::open(path) {
                                         Ok(_) => {}
@@ -244,7 +233,6 @@ fn run_app<B: Backend>(
                         KeyCode::Char('o') => {
                             if let Some(selected) = results_state.selected() {
                                 if let Some(path) = search_results.get(selected) {
-                                    db::add_to_history(conn, &search_input).unwrap_or_default();
                                     // Attempt to open the file
                                     match opener::open(path) {
                                         Ok(_) => {}
@@ -266,7 +254,6 @@ fn run_app<B: Backend>(
                         KeyCode::Char('e') => {
                             if let Some(selected) = results_state.selected() {
                                 if let Some(path) = search_results.get(selected) {
-                                    db::add_to_history(conn, &search_input).unwrap_or_default();
                                     disable_raw_mode()?;
                                     execute!(io::stdout(), LeaveAlternateScreen)?;
                                     let editor_result =
@@ -324,64 +311,6 @@ fn run_app<B: Backend>(
                                     }
                                 }
                             }
-                        }
-                        _ => {}
-                    },
-                    Focus::HistoryModal => match key.code {
-                        KeyCode::Up => {
-                            if !search_history.is_empty() {
-                                let i = match history_state.selected() {
-                                    Some(i) => {
-                                        (i + search_history.len() - 1) % search_history.len()
-                                    }
-                                    None => 0,
-                                };
-                                history_state.select(Some(i));
-                            }
-                        }
-                        KeyCode::Down => {
-                            if !search_history.is_empty() {
-                                let i = match history_state.selected() {
-                                    Some(i) => (i + 1) % search_history.len(),
-                                    None => 0,
-                                };
-                                history_state.select(Some(i));
-                            }
-                        }
-                        KeyCode::Enter => {
-                            if let Some(selected) = history_state.selected() {
-                                if let Some(term) = search_history.get(selected) {
-                                    search_input = term.clone();
-                                    search_results =
-                                        db::search_files(conn, &search_input).unwrap_or_default();
-                                    results_state.select(Some(0));
-                                }
-                            }
-                            focus = Focus::Search;
-                        }
-                        KeyCode::Esc => {
-                            focus = Focus::Search;
-                        }
-                        KeyCode::Delete if key.modifiers.contains(KeyModifiers::SHIFT) => {
-                            db::clear_history(conn).unwrap_or_default();
-                            search_history = vec![];
-                            history_state.select(None);
-                            focus = Focus::Search;
-                        }
-                        KeyCode::Delete => {
-                            focus = Focus::ConfirmClearHistory;
-                        }
-                        _ => {}
-                    },
-                    Focus::ConfirmClearHistory => match key.code {
-                        KeyCode::Char('y') | KeyCode::Char('Y') => {
-                            db::clear_history(conn).unwrap_or_default();
-                            search_history = vec![];
-                            history_state.select(None);
-                            focus = Focus::Search;
-                        }
-                        KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc => {
-                            focus = Focus::HistoryModal;
                         }
                         _ => {}
                     },
@@ -476,8 +405,6 @@ fn ui<B: Backend>(
     results_state: &mut ListState,
     focus: &Focus,
     highlight_color: &Color,
-    search_history: &[String],
-    history_state: &mut ListState,
     error_message: &Option<String>,
 ) {
     let chunks = Layout::default()
@@ -533,41 +460,6 @@ fn ui<B: Backend>(
         .highlight_style(Style::default().bg(*highlight_color));
     f.render_stateful_widget(results_list, chunks[1], results_state);
 
-    if let Focus::HistoryModal = focus {
-        let size = f.size();
-        let block = Block::default()
-            .title("Search History")
-            .borders(Borders::ALL)
-            // Ensure the background color is opaque and covers the entire area.
-            .style(Style::default().bg(Color::Black)); // Using Black for a solid opaque background
-        // Use the entire screen size for the modal to ensure it overlays completely.
-        let area = size;
-
-        let history_items: Vec<ListItem> = search_history
-            .iter()
-            .map(|item| ListItem::new(item.as_str()))
-            .collect();
-        let history_list = List::new(history_items)
-            .block(block)
-            .highlight_style(Style::default().bg(Color::LightBlue));
-        f.render_stateful_widget(history_list, area, history_state);
-    }
-
-    if let Focus::ConfirmClearHistory = focus {
-        let size = f.size();
-        let block = Block::default()
-            .title("Confirm Clear History")
-            .borders(Borders::ALL)
-            // Ensure the background color is opaque and covers the entire area.
-            .style(Style::default().bg(Color::Black)); // Using Black for a solid opaque background
-        // Use the entire screen size for the confirmation modal to ensure it overlays completely.
-        let area = size;
-
-        let confirm_text =
-            Paragraph::new("Are you sure you want to clear all search history? (y/N)").block(block);
-        f.render_widget(confirm_text, area);
-    }
-
     let mut summary_text = if search_results.is_empty() {
         "0 items".to_string()
     } else {
@@ -580,10 +472,8 @@ fn ui<B: Backend>(
 
     // Add shortcuts based on focus
     let shortcuts_text = match focus {
-        Focus::Search => " | Esc: Quit | Ctrl+H: History",
+        Focus::Search => " | Esc: Quit",
         Focus::Results => " | Enter/o: Open | e: Edit | d: Dir | Tab: Search | Esc: Quit",
-        Focus::HistoryModal => " | Enter: Select | Esc: Back | Shift+Del: Clear All",
-        Focus::ConfirmClearHistory => " | y/N: Confirm",
     };
     summary_text.push_str(shortcuts_text);
 
@@ -598,4 +488,3 @@ fn ui<B: Backend>(
         f.render_widget(error_paragraph, chunks[3]);
     }
 }
-

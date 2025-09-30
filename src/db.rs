@@ -1,5 +1,5 @@
 use eyre::Result;
-use rusqlite::{Connection, Result as RusqliteResult, params};
+use rusqlite::{params, Connection, Result as RusqliteResult};
 use std::path::PathBuf;
 
 pub fn get_db_path() -> Result<PathBuf> {
@@ -23,14 +23,6 @@ pub fn create_tables(conn: &Connection) -> RusqliteResult<()> {
          )",
         [],
     )?;
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS search_history (
-             id INTEGER PRIMARY KEY,
-             term TEXT NOT NULL UNIQUE,
-             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-         )",
-        [],
-    )?;
     Ok(())
 }
 
@@ -39,28 +31,6 @@ pub fn insert_file(conn: &Connection, path: &str) -> RusqliteResult<usize> {
         "INSERT OR IGNORE INTO files (path) VALUES (?1)",
         params![path],
     )
-}
-
-pub fn add_to_history(conn: &Connection, term: &str) -> RusqliteResult<usize> {
-    conn.execute(
-        "INSERT OR REPLACE INTO search_history (term) VALUES (?1)",
-        params![term],
-    )
-}
-
-pub fn get_history(conn: &Connection) -> RusqliteResult<Vec<String>> {
-    let mut stmt =
-        conn.prepare("SELECT term FROM search_history ORDER BY timestamp DESC LIMIT 20")?;
-    let mut rows = stmt.query([])?;
-    let mut history = Vec::new();
-    while let Some(row) = rows.next()? {
-        history.push(row.get(0)?);
-    }
-    Ok(history)
-}
-
-pub fn clear_history(conn: &Connection) -> RusqliteResult<usize> {
-    conn.execute("DELETE FROM search_history", [])
 }
 
 // Updated search_files function to handle specific search patterns.
@@ -109,3 +79,4 @@ pub fn search_files(conn: &Connection, term: &str) -> RusqliteResult<Vec<String>
     }
     Ok(files)
 }
+
