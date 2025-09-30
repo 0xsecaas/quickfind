@@ -1,9 +1,9 @@
 # quickfind
 
-**Search files instantly: fuzzy, configurable, interactive**
+**Search files instantly: configurable, interactive**
 
 Since I started using Linux, I always felt one essential tool was missing: a fast, reliable file finder like *Everything Search* on Windows.  
-So I built **quickfind** in Rust. Index the directories you care about once, and from then on you only need to remember part of a file name or its extension to locate files instantly. Quickly open files with your default app or jump straight into `vim` inside the terminal. Its fuzzy search, configurable indexing, and interactive TUI make finding files fast, reliable, and effortless.
+So I built **quickfind** in Rust. Index the directories you care about once, and from then on you only need to remember part of a file name or its extension to locate files instantly. Quickly open files with your default app or jump straight into `vim` inside the terminal. Its configurable indexing, and interactive TUI make finding files fast, reliable, and effortless.
 
 ---
 
@@ -11,7 +11,6 @@ So I built **quickfind** in Rust. Index the directories you care about once, and
 
 - **Configurable:** Customize search locations, ignored paths, and search depth via a simple configuration file.  
 - **Efficient Indexing:** Traverses directories and stores paths in a local database for fast searching.  
-- **Fuzzy Search:** Supports wildcards (`*` for multiple chars, `?` for single char) and file extension filtering (`.ext`).  
 - **Interactive Interface:** Browse results with a minimal TUI, open files in default apps or `vim`.  
 
 ---
