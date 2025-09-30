@@ -3,6 +3,7 @@ name = "quickfind"
 version = "1.0.0"
 edition = "2021"
 description = "Search local files instantly with fuzzy, configurable, interactive CLI"
+license = "MIT"
 
 [dependencies]
 clap = { version = "4.5.48", features = ["derive"] }
