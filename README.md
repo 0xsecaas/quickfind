@@ -1,46 +1,82 @@
 # quickfind
 
-**Search files instantly: configurable, interactive**
+**Search files instantly: configurable, interactive, Rust-powered.**
 
-Since I started using Linux, I always felt one essential tool was missing: a fast, reliable file finder like *Everything Search* on Windows.  
-So I built **quickfind** in Rust. Index the directories you care about once, and from then on you only need to remember part of a file name or its extension to locate files instantly. Quickly open files with your default app or jump straight into `vim` inside the terminal. Its configurable indexing, and interactive TUI make finding files fast, reliable, and effortless.
-
----
-
-## Features
-
-- **Configurable:** Customize search locations, ignored paths, and search depth via a simple configuration file.  
-- **Efficient Indexing:** Traverses directories and stores paths in a local database for fast searching.  
-- **Interactive Interface:** Browse results with a minimal TUI, open files in default apps or `vim`.  
-
----
+Remember part of a filename? Find it instantly in milliseconds, open it in your default app or jump straight into `vim`.
 
 ## Install Quickly
+
 ```bash
-cargo install quickfind
+$ cargo install quickfind
 ```
 
+<details> <summary>Usage</summary>
 
-## Install Like a Hacker
+## 1. Index once
 
-1. Clone the repository:
 ```bash
-git clone https://github.com/0xsecaas/quickfind
+$ quickfind index
+```
+
+## 2. Search any moment
+
+```bash
+$ quickfind <your-query>
+
+# OR
+
+$ quickfind
+```
+</details> 
+
+---
+
+
+<details> <summary>Why quickfind?</summary>
+
+Since I started using Linux, I always felt one essential tool was missing: a fast, reliable file finder like _Everything Search_ on Windows.  
+So I built **quickfind** in Rust. Its configurable indexing and interactive TUI make finding files fast, reliable, and effortless.
+
+</details>
+
+<details> <summary>Features</summary>
+
+- **Configurable:** Customize search locations, ignored paths, and search depth via a simple config file.
+- **Efficient Indexing:** Traverses directories once and stores paths in a local database for lightning-fast searching.
+- **Interactive Interface:** Browse results with a minimal TUI, open files in default apps or `vim`.
+
+</details>
+
+<details> <summary>Install from Source</summary>
+1. Clone the repository:
+
+```bash
+$ git clone https://github.com/0xsecaas/quickfind
 ```
 
 2. Build the project:
+
 ```bash
-cd quickfind
-cargo build --release
+$ cd quickfind
+$ cargo build --release
 ```
 
 3. Run the application:
+
 ```bash
-./target/release/quickfind
+$ ./target/release/quickfind
+
+# OR
+
+$ cargo run 
 ```
 
-## Configuration
-The configuration file is located at ~/.quickfind/config.toml.
+</details> 
+
+<details> <summary>Configuration</summary>
+
+Config file: `~/.quickfind/config.toml`
+
 ```toml
 include = [
     "/path/to/your/directory",
@@ -48,55 +84,49 @@ include = [
 ]
 ignore = "**/node_modules/**"
 depth = 10
-
+editor = "vim" # "vi" or "code" or "subl" or any editor of your choice
 ```
+
 - `include`: Absolute paths to directories you want to index.
 - `ignore`: Glob patterns for paths to exclude.
-- `depth`: Maximum depth to traverse within included directories.
+- `depth`: Maximum directory depth to traverse.
+</details> 
 
-## Usage
-### Indexing
-Populate the search database with:
-```bash
-quickfind index
-```
+<details> <summary>Interactive Mode</summary>
 
-## Searching
-Search for files interactively:
-```bash
-quickfind <your-query>
-```
+- `Tab`: Switch between search input and results
+- `Arrow Keys`: Navigate results
+- `Enter`: Open selected file/directory with default app
+- `v`: Open selected file with vim
+- `d`: Open containing directory
+- `Esc`: Exit interactive mode
 
+</details> 
 
-## Interactive Mode
+<details> <summary>Architecture</summary>
 
-- `Tab`: Switch between search input and results.
-- `Arrow Keys`: Navigate results.
-- `Enter`: Open selected file or directory with default app.
-- `v`: Open selected file with `vim`
-- `d`: Open the containing directory of the selected file.
-- `Esc`: Exit interactive mode.
+- `main.rs`: CLI parsing and orchestration
+- `config.rs`: Loads and manages user configs (~/.quickfind/config.toml)
+- `db.rs`: Handles persistent file indexing storage
+- `indexing.rs`: Traverses directories and populates the database
+- `tui.rs`: Interactive Text User Interface
 
----
+</details> 
 
-## Architecture
+<details> <summary>Future Plans</summary>
 
-The `quickfind` application is built in Rust and follows a modular design:
+- **Background Sync**: Automatically update the index as files change
 
--   **`main.rs`**: The entry point of the application. It parses command-line arguments and orchestrates the execution flow, delegating tasks to other modules.
--   **`config.rs`**: Handles the loading and management of user-defined configurations, typically from `~/.quickfind/config.toml`. This includes settings for directories to include, paths to ignore, and search depth.
--   **`db.rs`**: Manages the persistent storage of file indexing data. It provides an interface for adding, querying, and retrieving file paths from the local database.
--   **`indexing.rs`**: This module is responsible for traversing the file system based on the configuration. It identifies relevant files, filters them according to ignore patterns, and populates the database via `db.rs`.
--   **`tui.rs`**: Implements the interactive Text User Interface (TUI) for searching. It handles user input, displays search results, and provides interactive actions like opening files or directories.
+</details> 
 
----
+<details> <summary>Contributing</summary>
 
-## Future Plans
+Open issues, submit PRs, or suggest features.
 
--   **Background Synchronization**: Implement a background service or daemon that continuously monitors specified directories for new files or modifications. This service will automatically update the indexing database without requiring manual intervention, ensuring the search index is always up-to-date.
+</details> 
 
-## Contributing
-Contributions are welcome. Submit pull requests or open issues for bugs, feature requests, or suggestions.
+<details> <summary>License</summary>
 
-## License
-MIT License.
+MIT License
+
+</details>

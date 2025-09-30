@@ -91,6 +91,7 @@ fn run_app<B: Backend>(
         .as_ref()
         .and_then(|s| parse_color(s))
         .unwrap_or(Color::DarkGray);
+    let preferred_editor = config.editor.clone();
 
     let mut last_tick = Instant::now();
     let mut search_input = initial_search.clone().unwrap_or_default();
@@ -257,10 +258,14 @@ fn run_app<B: Backend>(
                                     db::add_to_history(conn, &search_input).unwrap_or_default();
                                     disable_raw_mode()?;
                                     execute!(io::stdout(), LeaveAlternateScreen)?;
-                                    let _ = Command::new("nvim").arg(path).status();
+                                    let editor_result = open_file_with_editor(path, preferred_editor.clone());
                                     enable_raw_mode()?;
                                     execute!(io::stdout(), EnterAlternateScreen)?;
                                     terminal.clear()?;
+                                    if let Err(e) = editor_result {
+                                        error_message = Some(format!("Error opening file: {}", e));
+                                        eprintln!("Failed to open file: {}. Error: {:?}", path, e);
+                                    }
                                 }
                             }
                         }
@@ -375,6 +380,22 @@ fn run_app<B: Backend>(
             last_tick = Instant::now();
         }
     }
+}
+
+fn open_file_with_editor(path: &str, preferred_editor: Option<String>) -> Result<()> {
+    let editors = if let Some(editor) = preferred_editor {
+        vec![editor, "nvim".to_string(), "vim".to_string(), "vi".to_string()]
+    } else {
+        vec!["nvim".to_string(), "vim".to_string(), "vi".to_string()]
+    };
+
+    for editor in editors {
+        match Command::new(&editor).arg(path).status() {
+            Ok(status) if status.success() => return Ok(()),
+            _ => continue,
+        }
+    }
+    eyre::bail!("Could not open file with any editor: nvim, vim, or vi.")
 }
 
 // Helper function to create styled spans for highlighting search terms

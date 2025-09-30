@@ -10,6 +10,7 @@ pub struct Config {
     pub ignore: Vec<String>,
     pub depth: usize,
     pub highlight_color: Option<String>,
+    pub editor: Option<String>,
 }
 
 impl Default for Config {
@@ -19,12 +20,7 @@ impl Default for Config {
 
         if let Some(home_dir) = home_dir_opt {
             // Add common directories relative to home
-            let common_dirs = vec![
-                "Documents",
-                "Projects",
-                "Code",
-                "Desktop",
-            ];
+            let common_dirs = vec!["Documents", "Projects", "Code", "Desktop"];
             for dir in common_dirs {
                 // Construct the full path and convert to string
                 if let Some(path_str) = home_dir.join(dir).to_str() {
@@ -70,13 +66,14 @@ impl Default for Config {
             ],
             depth: 10,
             highlight_color: None,
+            editor: None, // vi, vim, nvim, subl, code, etc.
         }
     }
 }
 
 pub fn get_config_path() -> Result<PathBuf> {
     let home_dir = home::home_dir().ok_or_else(|| eyre::eyre!("Could not find home directory"))?;
-    let config_dir = home_dir.join(".search");
+    let config_dir = home_dir.join(".quickfind");
     fs::create_dir_all(&config_dir)?;
     Ok(config_dir.join("conf.toml"))
 }

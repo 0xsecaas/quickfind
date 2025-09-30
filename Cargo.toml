@@ -1,9 +1,15 @@
 [package]
 name = "quickfind"
-version = "1.1.1"
+version = "1.2.0"
 edition = "2021"
 description = "Search local files instantly with configurable, interactive CLI"
 license = "MIT"
+authors = ["Charly <github.womankind045@passinbox.com>"]
+repository = "https://github.com/0xsecaas/quickfind"
+readme = "README.md"
+keywords = ["cli", "task-manager", "personal-development", "goal-tracker"]
+categories = ["command-line-utilities"]
+
 
 [dependencies]
 clap = { version = "4.5.48", features = ["derive"] }
