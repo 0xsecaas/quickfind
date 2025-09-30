@@ -25,7 +25,7 @@ cargo install quickfind
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/your-username/quickfind.git
+git clone https://github.com/0xsecaas/quickfind
 ```
 
 2. Build the project:
@@ -77,12 +77,6 @@ quickfind <your-query>
 - `d`: Open the containing directory of the selected file.
 - `Esc`: Exit interactive mode.
 
-## Contributing
-Contributions are welcome. Submit pull requests or open issues for bugs, feature requests, or suggestions.
-
-## License
-MIT License.
-
 ---
 
 ## Architecture
@@ -100,3 +94,9 @@ The `quickfind` application is built in Rust and follows a modular design:
 ## Future Plans
 
 -   **Background Synchronization**: Implement a background service or daemon that continuously monitors specified directories for new files or modifications. This service will automatically update the indexing database without requiring manual intervention, ensuring the search index is always up-to-date.
+
+## Contributing
+Contributions are welcome. Submit pull requests or open issues for bugs, feature requests, or suggestions.
+
+## License
+MIT License.
