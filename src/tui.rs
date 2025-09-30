@@ -19,6 +19,7 @@ use tui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Style},
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
+    text::{Span, Text, Spans},
 };
 
 enum Focus {
@@ -141,7 +142,7 @@ fn run_app<B: Backend>(
                                 if let Some(path) = search_results.get(0) {
                                     // Attempt to open the file
                                     match opener::open(path) {
-                                        Ok(_) => {}
+                                        Ok(_) => {},
                                         Err(e) => {
                                             // Handle file not found or other errors
                                             error_message =
@@ -212,7 +213,7 @@ fn run_app<B: Backend>(
                                     db::add_to_history(conn, &search_input).unwrap_or_default();
                                     // Attempt to open the file
                                     match opener::open(path) {
-                                        Ok(_) => {}
+                                        Ok(_) => {},
                                         Err(e) => {
                                             // Handle file not found or other errors
                                             error_message =
@@ -234,7 +235,7 @@ fn run_app<B: Backend>(
                                     db::add_to_history(conn, &search_input).unwrap_or_default();
                                     // Attempt to open the file
                                     match opener::open(path) {
-                                        Ok(_) => {}
+                                        Ok(_) => {},
                                         Err(e) => {
                                             // Handle file not found or other errors
                                             error_message =
@@ -376,6 +377,46 @@ fn run_app<B: Backend>(
     }
 }
 
+// Helper function to create styled spans for highlighting search terms
+fn create_highlighted_spans(text: &str, term: &str, highlight_color: &Color) -> Vec<Span<'static>> {
+    let mut spans = Vec::new();
+    let mut last_end: usize = 0;
+
+    if term.is_empty() {
+        spans.push(Span::raw(text.to_string()));
+        return spans;
+    }
+
+    // Case-insensitive search for highlighting
+    let term_lower = term.to_lowercase();
+    let text_lower = text.to_lowercase();
+
+    // Find all occurrences of the term (case-insensitive)
+    // match_indices returns tuples of (start_index, end_index) as usize
+    let indices_iter = text_lower.match_indices(&term_lower);
+    let indices_iter_typed = indices_iter.map(|(start, matched_str)| (start, start + matched_str.len()));
+
+    for (start_idx, end_idx) in indices_iter_typed {
+        // Add text before the match
+        if start_idx > last_end {
+            spans.push(Span::raw(text[last_end..start_idx].to_string()));
+        }
+        // Add the matched text with highlight style
+        spans.push(Span::styled(
+            text[start_idx..end_idx].to_string(),
+            Style::default().bg(*highlight_color),
+        ));
+        last_end = end_idx;
+    }
+
+    // Add any remaining text after the last match
+    if last_end < text.len() {
+        spans.push(Span::raw(text[last_end..].to_string()));
+    }
+
+    spans
+}
+
 fn ui<B: Backend>(
     f: &mut Frame<B>,
     search_input: &str,
@@ -424,7 +465,11 @@ fn ui<B: Backend>(
     };
     let results: Vec<ListItem> = search_results
         .iter()
-        .map(|item| ListItem::new(item.as_str()))
+        .map(|item| {
+            // Use the search_input for highlighting, not the whole item
+            let spans = create_highlighted_spans(item, search_input, highlight_color);
+            ListItem::new(Text::from(Spans::from(spans)))
+        })
         .collect();
 
     let results_list = List::new(results)
@@ -507,4 +552,3 @@ fn ui<B: Backend>(
         f.render_widget(error_paragraph, chunks[3]);
     }
 }
-
