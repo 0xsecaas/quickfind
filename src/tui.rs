@@ -77,6 +77,18 @@ fn parse_color(s: &str) -> Option<Color> {
     }
 }
 
+fn handle_file_opening(path: &str, error_message: &mut Option<String>) {
+    match opener::open(path) {
+        Ok(_) => {
+            *error_message = None; // Clear error on successful open
+        }
+        Err(e) => {
+            *error_message = Some(format!("Error opening file: {}", path));
+            eprintln!("Failed to open file: {}. Error: {:?}", path, e);
+        }
+    }
+}
+
 fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
     conn: &Connection,
@@ -135,21 +147,7 @@ fn run_app<B: Backend>(
                                 results_state.select(Some(0));
                                 focus = Focus::Results;
                                 if let Some(path) = search_results.get(0) {
-                                    // Attempt to open the file
-                                    match opener::open(path) {
-                                        Ok(_) => {}
-                                        Err(e) => {
-                                            // Handle file not found or other errors
-                                            error_message =
-                                                Some(format!("Error opening file: {}", path));
-                                            eprintln!(
-                                                "Failed to open file: {}. Error: {:?}",
-                                                path, e
-                                            );
-                                            // If the error is indeed a file not found, we'd ideally want to re-index.
-                                            // For now, we'll just log the error.
-                                        }
-                                    }
+                                    handle_file_opening(path, &mut error_message);
                                 }
                             }
                         }
@@ -233,21 +231,7 @@ fn run_app<B: Backend>(
                         KeyCode::Char('o') => {
                             if let Some(selected) = results_state.selected() {
                                 if let Some(path) = search_results.get(selected) {
-                                    // Attempt to open the file
-                                    match opener::open(path) {
-                                        Ok(_) => {}
-                                        Err(e) => {
-                                            // Handle file not found or other errors
-                                            error_message =
-                                                Some(format!("Error opening file: {}", path));
-                                            eprintln!(
-                                                "Failed to open file: {}. Error: {:?}",
-                                                path, e
-                                            );
-                                            // If the error is indeed a file not found, we'd ideally want to re-index.
-                                            // For now, we'll just log the error.
-                                        }
-                                    }
+                                    handle_file_opening(path, &mut error_message);
                                 }
                             }
                         }
