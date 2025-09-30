@@ -2,6 +2,8 @@
 
 **Search files instantly: configurable, interactive, Rust-powered.**
 
+[![asciicast](https://asciinema.org/a/dLkoml2XselK9G31oqEtv3O0J.svg)](https://asciinema.org/a/dLkoml2XselK9G31oqEtv3O0J)
+
 Remember part of a filename? Find it instantly in milliseconds, open it in your default app or jump straight into `vim`.
 
 ## Install Quickly
