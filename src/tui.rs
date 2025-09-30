@@ -3,7 +3,7 @@ use crate::db;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
     execute,
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use eyre::Result;
 use rusqlite::Connection;
@@ -14,12 +14,12 @@ use std::{
     time::{Duration, Instant},
 };
 use tui::{
-    Frame, Terminal,
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
     style::{Color, Style},
+    text::{Span, Spans, Text},
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
-    text::{Span, Text, Spans},
+    Frame, Terminal,
 };
 
 enum Focus {
@@ -143,7 +143,7 @@ fn run_app<B: Backend>(
                                 if let Some(path) = search_results.get(0) {
                                     // Attempt to open the file
                                     match opener::open(path) {
-                                        Ok(_) => {},
+                                        Ok(_) => {}
                                         Err(e) => {
                                             // Handle file not found or other errors
                                             error_message =
@@ -187,6 +187,17 @@ fn run_app<B: Backend>(
                                 cursor_position += 1;
                             }
                         }
+                        KeyCode::Home => {
+                            cursor_position = 0;
+                        }
+                        KeyCode::End => {
+                            cursor_position = search_input.len();
+                        }
+                        KeyCode::Delete => {
+                            if cursor_position < search_input.len() {
+                                search_input.remove(cursor_position);
+                            }
+                        }
                         KeyCode::Esc => {
                             return Ok(());
                         }
@@ -214,7 +225,7 @@ fn run_app<B: Backend>(
                                     db::add_to_history(conn, &search_input).unwrap_or_default();
                                     // Attempt to open the file
                                     match opener::open(path) {
-                                        Ok(_) => {},
+                                        Ok(_) => {}
                                         Err(e) => {
                                             // Handle file not found or other errors
                                             error_message =
@@ -236,7 +247,7 @@ fn run_app<B: Backend>(
                                     db::add_to_history(conn, &search_input).unwrap_or_default();
                                     // Attempt to open the file
                                     match opener::open(path) {
-                                        Ok(_) => {},
+                                        Ok(_) => {}
                                         Err(e) => {
                                             // Handle file not found or other errors
                                             error_message =
@@ -252,13 +263,14 @@ fn run_app<B: Backend>(
                                 }
                             }
                         }
-                        KeyCode::Char('v') => {
+                        KeyCode::Char('e') => {
                             if let Some(selected) = results_state.selected() {
                                 if let Some(path) = search_results.get(selected) {
                                     db::add_to_history(conn, &search_input).unwrap_or_default();
                                     disable_raw_mode()?;
                                     execute!(io::stdout(), LeaveAlternateScreen)?;
-                                    let editor_result = open_file_with_editor(path, preferred_editor.clone());
+                                    let editor_result =
+                                        open_file_with_editor(path, preferred_editor.clone());
                                     enable_raw_mode()?;
                                     execute!(io::stdout(), EnterAlternateScreen)?;
                                     terminal.clear()?;
@@ -384,7 +396,12 @@ fn run_app<B: Backend>(
 
 fn open_file_with_editor(path: &str, preferred_editor: Option<String>) -> Result<()> {
     let editors = if let Some(editor) = preferred_editor {
-        vec![editor, "nvim".to_string(), "vim".to_string(), "vi".to_string()]
+        vec![
+            editor,
+            "nvim".to_string(),
+            "vim".to_string(),
+            "vi".to_string(),
+        ]
     } else {
         vec!["nvim".to_string(), "vim".to_string(), "vi".to_string()]
     };
@@ -401,33 +418,46 @@ fn open_file_with_editor(path: &str, preferred_editor: Option<String>) -> Result
 // Helper function to create styled spans for highlighting search terms
 fn create_highlighted_spans(text: &str, term: &str, highlight_color: &Color) -> Vec<Span<'static>> {
     let mut spans = Vec::new();
-    let mut last_end: usize = 0;
 
     if term.is_empty() {
         spans.push(Span::raw(text.to_string()));
         return spans;
     }
 
-    // Case-insensitive search for highlighting
-    let term_lower = term.to_lowercase();
+    let words: Vec<&str> = term.split_whitespace().collect();
+    if words.is_empty() {
+        spans.push(Span::raw(text.to_string()));
+        return spans;
+    }
+
+    let mut matches = Vec::new();
     let text_lower = text.to_lowercase();
 
-    // Find all occurrences of the term (case-insensitive)
-    // match_indices returns tuples of (start_index, end_index) as usize
-    let indices_iter = text_lower.match_indices(&term_lower);
-    let indices_iter_typed = indices_iter.map(|(start, matched_str)| (start, start + matched_str.len()));
-
-    for (start_idx, end_idx) in indices_iter_typed {
-        // Add text before the match
-        if start_idx > last_end {
-            spans.push(Span::raw(text[last_end..start_idx].to_string()));
+    for word in words {
+        let word_lower = word.to_lowercase();
+        for (start, _) in text_lower.match_indices(&word_lower) {
+            matches.push((start, start + word.len(), word));
         }
-        // Add the matched text with highlight style
-        spans.push(Span::styled(
-            text[start_idx..end_idx].to_string(),
-            Style::default().bg(*highlight_color),
-        ));
-        last_end = end_idx;
+    }
+
+    // Sort matches by start index, then by length (descending) to prioritize longer matches if they start at the same position.
+    matches.sort_by(|a, b| a.0.cmp(&b.0).then(b.1.cmp(&a.1)));
+
+    let mut last_end = 0;
+    for (start, end, _matched_word) in matches {
+        // Skip if this match is completely contained within a previous match
+        if start >= last_end {
+            // Add text before the current match
+            if start > last_end {
+                spans.push(Span::raw(text[last_end..start].to_string()));
+            }
+            // Add the highlighted match
+            spans.push(Span::styled(
+                text[start..end].to_string(),
+                Style::default().bg(*highlight_color),
+            ));
+            last_end = end;
+        }
     }
 
     // Add any remaining text after the last match
@@ -508,18 +538,10 @@ fn ui<B: Backend>(
         let block = Block::default()
             .title("Search History")
             .borders(Borders::ALL)
-            .style(Style::default().bg(Color::DarkGray));
-        let area = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(
-                [
-                    Constraint::Percentage(30),
-                    Constraint::Percentage(40),
-                    Constraint::Percentage(30),
-                ]
-                .as_ref(),
-            )
-            .split(size)[1];
+            // Ensure the background color is opaque and covers the entire area.
+            .style(Style::default().bg(Color::Black)); // Using Black for a solid opaque background
+        // Use the entire screen size for the modal to ensure it overlays completely.
+        let area = size;
 
         let history_items: Vec<ListItem> = search_history
             .iter()
@@ -535,25 +557,18 @@ fn ui<B: Backend>(
         let size = f.size();
         let block = Block::default()
             .title("Confirm Clear History")
-            .borders(Borders::ALL);
-        let area = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(
-                [
-                    Constraint::Percentage(40),
-                    Constraint::Percentage(20),
-                    Constraint::Percentage(40),
-                ]
-                .as_ref(),
-            )
-            .split(size)[1];
+            .borders(Borders::ALL)
+            // Ensure the background color is opaque and covers the entire area.
+            .style(Style::default().bg(Color::Black)); // Using Black for a solid opaque background
+        // Use the entire screen size for the confirmation modal to ensure it overlays completely.
+        let area = size;
 
         let confirm_text =
             Paragraph::new("Are you sure you want to clear all search history? (y/N)").block(block);
         f.render_widget(confirm_text, area);
     }
 
-    let summary_text = if search_results.is_empty() {
+    let mut summary_text = if search_results.is_empty() {
         "0 items".to_string()
     } else {
         format!(
@@ -562,6 +577,16 @@ fn ui<B: Backend>(
             search_results.len()
         )
     };
+
+    // Add shortcuts based on focus
+    let shortcuts_text = match focus {
+        Focus::Search => " | Esc: Quit | Ctrl+H: History",
+        Focus::Results => " | Enter/o: Open | e: Edit | d: Dir | Tab: Search | Esc: Quit",
+        Focus::HistoryModal => " | Enter: Select | Esc: Back | Shift+Del: Clear All",
+        Focus::ConfirmClearHistory => " | y/N: Confirm",
+    };
+    summary_text.push_str(shortcuts_text);
+
     let summary = Paragraph::new(summary_text).style(Style::default().fg(Color::Gray));
     f.render_widget(summary, chunks[2]);
 
@@ -573,3 +598,4 @@ fn ui<B: Backend>(
         f.render_widget(error_paragraph, chunks[3]);
     }
 }
+
